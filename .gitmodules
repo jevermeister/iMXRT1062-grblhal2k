@@ -43,3 +43,6 @@
 [submodule "grblHAL_Teensy4/src/rgb"]
 	path = grblHAL_Teensy4/src/rgb
 	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin.git
+[submodule "grblHAL_Teensy4/src/grbl"]
+	path = grblHAL_Teensy4/src/grbl
+	url = https://github.com/jevermeister/grblhal2k-core.git
