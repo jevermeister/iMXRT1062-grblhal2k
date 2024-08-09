@@ -1,6 +1,3 @@
-[submodule "grblHAL_Teensy4/src/grbl"]
-	path = grblHAL_Teensy4/src/grbl
-	url = https://github.com/grblHAL/core
 [submodule "grblHAL_Teensy4/src/eeprom"]
 	path = grblHAL_Teensy4/src/eeprom
 	url = https://github.com/grblHAL/Plugin_EEPROM
@@ -43,3 +40,6 @@
 [submodule "grblHAL_Teensy4/src/embroidery"]
 	path = grblHAL_Teensy4/src/embroidery
 	url = https://github.com/grblHAL/Plugin_embroidery
+[submodule "grblHAL_Teensy4/src/rgb"]
+	path = grblHAL_Teensy4/src/rgb
+	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin.git
