@@ -1,9 +1,6 @@
 [submodule "grblHAL_Teensy4/src/eeprom"]
 	path = grblHAL_Teensy4/src/eeprom
 	url = https://github.com/grblHAL/Plugin_EEPROM
-[submodule "grblHAL_Teensy4/src/keypad"]
-	path = grblHAL_Teensy4/src/keypad
-	url = https://github.com/grblHAL/Plugin_I2C_keypad
 [submodule "grblHAL_Teensy4/src/networking"]
 	path = grblHAL_Teensy4/src/networking
 	url = https://github.com/grblHAL/Plugin_networking
@@ -40,9 +37,15 @@
 [submodule "grblHAL_Teensy4/src/embroidery"]
 	path = grblHAL_Teensy4/src/embroidery
 	url = https://github.com/grblHAL/Plugin_embroidery
-[submodule "grblHAL_Teensy4/src/rgb"]
-	path = grblHAL_Teensy4/src/rgb
-	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin.git
 [submodule "grblHAL_Teensy4/src/grbl"]
 	path = grblHAL_Teensy4/src/grbl
 	url = https://github.com/jevermeister/grblhal2k-core.git
+[submodule "grblHAL_Teensy4/src/probe_plugin"]
+	path = grblHAL_Teensy4/src/probe_plugin
+	url = https://github.com/jevermeister/grblhal2k_probe_plugin
+[submodule "grblHAL_Teensy4/src/keypad"]
+	path = grblHAL_Teensy4/src/keypad
+	url = https://github.com/jevermeister/grblhal2k-Plugin_I2C_keypad.git
+[submodule "grblHAL_Teensy4/src/rgb"]
+	path = grblHAL_Teensy4/src/rgb
+	url = https://github.com/Expatria-Technologies/grblhal-rgb-plugin
