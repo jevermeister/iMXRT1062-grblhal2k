@@ -28,30 +28,30 @@
 //#define BOARD_T41U5XBB_SS // For a modified T41U5XBB board, allows spindle sync to be enabled.
 //#define BOARD_T41BB5X_PRO
 //#define BOARD_CNC_BOOSTERPACK
-//#define BOARD_GRBLHAL2000
+#define BOARD_GRBLHAL2000
 //#define BOARD_MY_MACHINE // Add my_machine_map.h before enabling this!
 //#define BAUD_RATE 230400
 // Configuration
 // Uncomment to enable, for some a value > 1 may be assigned, if so the default value is shown.
 
 /*
-              Plugin: | ETHERNET¹ | SDCARD¹ | KEYPAD | EEPROM | N_AXIS |
+              Plugin: | ETHERNETï¿½ | SDCARDï¿½ | KEYPAD | EEPROM | N_AXIS |
 ----------------------|-----------|---------|--------|--------|--------|
-BOARD_T40X101         | no        | no      | yes    | yes³   | max 4  |
-BOARD_T41U5XBB        | yes       | yes     | yes    | yes³   | max 5  |
+BOARD_T40X101         | no        | no      | yes    | yesï¿½   | max 4  |
+BOARD_T41U5XBB        | yes       | yes     | yes    | yesï¿½   | max 5  |
 BOARD_T41BB5X_PRO     | yes       | yes     | yes    | yes    | max 5  |
-BOARD_CNC_BOOSTERPACK | yes²      | yes     | yes    | yes    | max 3  |
+BOARD_CNC_BOOSTERPACK | yesï¿½      | yes     | yes    | yes    | max 3  |
 BOARD_GRBLHAL2000     | yes       | yes     | yes    | yes    | max 5  |
 
-¹ Teensy 4.1 only
-² External magjack.
-³ EEPROM is optional and must be added to the board.
+ï¿½ Teensy 4.1 only
+ï¿½ External magjack.
+ï¿½ EEPROM is optional and must be added to the board.
 
 N_AXIS has a default value of 3, edit grbl\config.h to increase.
 
 */
 #ifndef USB_SERIAL_CDC
-#define USB_SERIAL_CDC         2 // 1 for Arduino class library and 2 for PJRC C library. Comment out or set to 0 to use UART communication.
+#define USB_SERIAL_CDC         1 // 1 for Arduino class library and 2 for PJRC C library. Comment out or set to 0 to use UART communication.
 #endif
 //#define USB_SERIAL_WAIT         1 // Wait for USB connection before starting grblHAL.
 //#define BLUETOOTH_ENABLE        2 // Set to 2 for HC-05 module. Requires and claims one auxillary input pin.
@@ -61,21 +61,22 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 // If none are specified the default PWM spindle is instantiated.
 // Spindle definitions can be found in grbl/spindle_control.h.
 // More here https://github.com/grblHAL/Plugins_spindle
-//#define SPINDLE0_ENABLE         SPINDLE_HUANYANG1
+#define N_SPINDLE               1
+#define SPINDLE0_ENABLE           SPINDLE_MODVFD
 //#define SPINDLE1_ENABLE         SPINDLE_PWM0
 //#define SPINDLE2_ENABLE         SPINDLE_NONE
 //#define SPINDLE2_ENABLE         SPINDLE_NONE
 // **********************
-//#define MODBUS_ENABLE           1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
+#define MODBUS_ENABLE           1 // Set to 1 for auto direction, 2 for direction signal on auxillary output pin.
 //#define WEBUI_ENABLE            3 // Enable ESP3D-WEBUI plugin along with networking and SD card plugins.
-//#define ETHERNET_ENABLE         1 // Ethernet streaming. Enables networking plugin.
-//#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
+#define ETHERNET_ENABLE         1 // Ethernet streaming. Enables networking plugin.
+#define SDCARD_ENABLE           1 // Run gcode programs from SD card. Set to 2 to enable YModem upload.
 //#define LITTLEFS_ENABLE         1 // Enable flash based storage, automatically enabled if WebUI is enabled
 //#define QEI_ENABLE              1 // Enable quadrature encoder interfaces. Max value is 1. Requires encoder plugin.
 //#define MPG_ENABLE              1 // Enable MPG interface. Requires a serial stream and means to switch between normal and MPG mode.
                                     // 1: Mode switching is by handshake pin.
                                     // 2: Mode switching is by the CMD_MPG_MODE_TOGGLE (0x8B) command character.
-//#define KEYPAD_ENABLE           1 // 1: uses a I2C keypad for input.
+#define KEYPAD_ENABLE           1 // 1: uses a I2C keypad for input.
                                     // 2: uses a serial stream for input. If MPG_ENABLE is set > 0 the serial stream is shared with the MPG.
 //#define DISPLAY_ENABLE          1 // Set to 1 for I2C display protocol, 2 for I2C LED protocol.
 //#define MACROS_ENABLE           1 // Macros plugin. For macros that can be triggered by keypad plugin or auxillary inputs.
@@ -93,12 +94,16 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 //#define EEPROM_IS_FRAM          1 // Uncomment when EEPROM is enabled and chip is FRAM, this to remove write delay.
 //#define SPINDLE_SYNC_ENABLE     1 // Enable spindle sync support (G33, G76). !! NOTE: Alpha quality - enable only for test or verification.
                                     // Currently only available for BOARD_T41BB5X_PRO and BOARD_T41U5XBB_SS.
-//#define ESTOP_ENABLE            0 // When enabled only real-time report requests will be executed when the reset pin is asserted.
+#define ESTOP_ENABLE              1 // When enabled only real-time report requests will be executed when the reset pin is asserted.
                                     // Note: if left commented out the default setting is determined from COMPATIBILITY_LEVEL.
+
+#define STATUS_LIGHT_ENABLE       1 // Expatria RGB plugin
+
 // Optional control signals:
 // These will be assigned to aux input pins. Use the $pins command to check which pins are assigned.
 // NOTE: If not enough pins are available assignment will silently fail.
-//#define PROBE_ENABLE            0 // Default enabled, remove comment to disable probe input.
+#define PROBE_ENABLE              1 // Default enabled, remove comment to disable probe input.
+#define PROBE_PROTECT_ENABLE      1 // Probe protect plugin
 //#define SAFETY_DOOR_ENABLE      1
 //#define MOTOR_FAULT_ENABLE      1
 //#define MOTOR_WARNING_ENABLE    1
@@ -113,7 +118,7 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 //#define X_GANGED             1
 //#define X_AUTO_SQUARE        1
 //#define Y_GANGED             1
-//#define Y_AUTO_SQUARE        1
+#define Y_AUTO_SQUARE        1
 //#define Z_GANGED             1
 //#define Z_AUTO_SQUARE        1
 // For ganged axes the limit switch input (if available) can be configured to act as a max travel limit switch.
@@ -124,7 +129,7 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 //
 
 #if ETHERNET_ENABLE || WEBUI_ENABLE
-//#define TELNET_ENABLE        1 // Telnet daemon - requires Ethernet streaming enabled.
+#define TELNET_ENABLE        1 // Telnet daemon - requires Ethernet streaming enabled.
 //#define WEBSOCKET_ENABLE     1 // Websocket daemon - requires Ethernet streaming enabled.
 //#define MDNS_ENABLE          1 // mDNS daemon.
 //#define SSDP_ENABLE          1 // SSDP daemon - requires HTTP enabled.
@@ -136,7 +141,7 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 #endif
 // The following symbols have the default values as shown, uncomment and change as needed.
 //#define NETWORK_HOSTNAME        "grblHAL"
-//#define NETWORK_IPMODE          1 // 0 = static, 1 = DHCP, 2 = AutoIP
+#define NETWORK_IPMODE            0 // 0 = static, 1 = DHCP, 2 = AutoIP
 //#define NETWORK_IP              "192.168.5.1"
 //#define NETWORK_GATEWAY         "192.168.5.1"
 //#define NETWORK_MASK            "255.255.255.0"
