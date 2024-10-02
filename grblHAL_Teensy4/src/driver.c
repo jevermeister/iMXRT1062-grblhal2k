@@ -49,10 +49,6 @@
 #include "ioports.h"
 #endif
 
-#if KEYPAD_ENABLE == 2
-#include "keypad/keypad.h"
-#endif
-
 #if SDCARD_ENABLE
 #include "uSDFS.h"
 #include "sdcard/sdcard.h"
@@ -135,10 +131,13 @@ static spindle_data_t spindle_data;
 static spindle_encoder_t spindle_encoder = {
     .tics_per_irq = 4
 };
+static void spindle_pulse_isr (void);
+static on_spindle_programmed_ptr on_spindle_programmed = NULL;
+
+#if SPINDLE_SYNC_ENABLE
 static spindle_sync_t spindle_tracker;
 static volatile bool spindleLock = false;
-
-static void spindle_pulse_isr (void);
+#endif
 
 #endif // SPINDLE_ENCODER_ENABLE
 
@@ -156,7 +155,7 @@ static Probe;
 #if I2C_STROBE_ENABLE
 static gpio_t KeypadStrobe;
 #endif
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 static gpio_t ModeSelect;
 static input_signal_t *mpg_pin = NULL;
 #endif
@@ -769,7 +768,7 @@ inline static __attribute__((always_inline)) void set_dir_outputs (axes_signals_
 // enable.value (or enable.mask) are: bit0 -> X, bit1 -> Y...
 // Individual enable bits can be accessed by enable.x, enable.y, ...
 // NOTE: if a common signal is used to enable all drivers enable.x should be used to set the signal.
-static void stepperEnable (axes_signals_t enable)
+static void stepperEnable (axes_signals_t enable, bool hold)
 {
     enable.value ^= settings.steppers.enable_invert.mask;
 
@@ -813,7 +812,7 @@ static void stepperEnable (axes_signals_t enable)
 static void stepperWakeUp (void)
 {
     // Enable stepper drivers.
-    hal.stepper.enable((axes_signals_t){AXES_BITMASK});
+    hal.stepper.enable((axes_signals_t){AXES_BITMASK}, false);
 
     PIT_LDVAL0 = hal.f_step_timer / 500; // ~2ms delay to allow drivers time to wake up.
     PIT_TFLG0 |= PIT_TFLG_TIF;
@@ -1260,7 +1259,7 @@ static probe_state_t probeGetState (void)
 
 #endif // PROBE_ENABLE
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
 
 static void mpg_select (void *data)
 {
@@ -1498,14 +1497,7 @@ static void spindleSetStateVariable (spindle_ptrs_t *spindle, spindle_state_t st
                               : spindle->context.pwm->off_value);
 
 #if SPINDLE_ENCODER_ENABLE
-    if(spindle->context.pwm->settings->at_speed_tolerance > 0.0f) {
-        float tolerance = rpm * spindle->context.pwm->settings->at_speed_tolerance / 100.0f;
-        spindle_data.rpm_low_limit = rpm - tolerance;
-        spindle_data.rpm_high_limit = rpm + tolerance;
-    }
-    spindle_data.state_programmed.on = state.on;
-    spindle_data.state_programmed.ccw = state.ccw;
-    spindle_data.rpm_programmed = spindle_data.rpm = rpm;
+    spindle_set_at_speed_range(spindle, &spindle_data, rpm);
 #endif
 }
 
@@ -1633,9 +1625,7 @@ static spindle_data_t *spindleGetData (spindle_data_request_t request)
             break;
 
         case SpindleData_AtSpeed:
-            if(!stopped)
-                spindle_data.rpm = spindle_encoder.rpm_factor / (float)pulse_length;
-            spindle_data.state_programmed.at_speed = settings.spindle.at_speed_tolerance <= 0.0f || (spindle_data.rpm >= spindle_data.rpm_low_limit && spindle_data.rpm <= spindle_data.rpm_high_limit);
+            spindle_validate_at_speed(spindle_data, stopped ? 0.0f : spindle_encoder.rpm_factor / (float)pulse_length);
             spindle_data.state_programmed.encoder_error = spindle_encoder.error_count > 0;
             break;
 
@@ -1685,6 +1675,18 @@ static void spindleDataReset (void)
     // Spindle pulse counter
     GPT2_OCR1 = spindle_encoder.tics_per_irq;
     GPT2_CR |= GPT_CR_EN;
+}
+
+static void onSpindleProgrammed (spindle_ptrs_t *spindle, spindle_state_t state, float rpm, spindle_rpm_mode_t mode)
+{
+    if(on_spindle_programmed)
+        on_spindle_programmed(spindle, state, rpm, mode);
+
+    if(spindle->get_data == spindleGetData) {
+        spindle_set_at_speed_range(spindle, &spindle_data, rpm);
+        spindle_data.state_programmed.on = state.on;
+        spindle_data.state_programmed.ccw = state.ccw;
+    }
 }
 
 #endif // SPINDLE_ENCODER_ENABLE
@@ -1763,6 +1765,13 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
 #if SPINDLE_ENCODER_ENABLE
 
+        static const spindle_data_ptrs_t encoder_data = {
+            .get = spindleGetData,
+            .reset = spindleDataReset
+        };
+
+        static bool event_claimed = false;
+
         if((hal.spindle_data.get = settings->spindle.ppr > 0 ? spindleGetData : NULL) &&
              (spindle_encoder.ppr != settings->spindle.ppr || pidf_config_changed(&spindle_tracker.pid, &settings->position.pid))) {
 
@@ -1774,6 +1783,12 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
 
             pidf_init(&spindle_tracker.pid, &settings->position.pid);
 
+            if(!event_claimed) {
+                event_claimed = true;
+                on_spindle_programmed = grbl.on_spindle_programmed;
+                grbl.on_spindle_programmed = onSpindleProgrammed;
+            }
+
             float timer_resolution = 1.0f / 1000000.0f; // 1 us resolution
 
             spindle_tracker.min_cycles_per_tick = (int32_t)ceilf(settings->steppers.pulse_microseconds * 2.0f + settings->steppers.pulse_delay_microseconds);
@@ -1783,7 +1798,12 @@ static void settings_changed (settings_t *settings, settings_changed_flags_t cha
             spindle_encoder.maximum_tt = (uint32_t)(2.0f / timer_resolution) / spindle_encoder.tics_per_irq;
             spindle_encoder.rpm_factor = 60.0f / ((timer_resolution * (float)spindle_encoder.ppr));
             spindleDataReset();
+        } else {
+            spindle_encoder.ppr = 0;
+            hal.spindle_data.reset = NULL;
         }
+
+        spindle_bind_encoder(spindle_encoder.ppr ? &encoder_data : NULL);
 
 #endif // SPINDLE_ENCODER_ENABLE
 
@@ -2495,7 +2515,7 @@ bool driver_init (void)
         options[strlen(options) - 1] = '\0';
 
     hal.info = "iMXRT1062";
-    hal.driver_version = "240404";
+    hal.driver_version = "240928";
     hal.driver_url = GRBL_URL "/iMXRT1062";
 #ifdef BOARD_NAME
     hal.board = BOARD_NAME;
@@ -2593,6 +2613,11 @@ bool driver_init (void)
 
     static const spindle_ptrs_t spindle = {
         .type = SpindleType_PWM,
+#if DRIVER_SPINDLE_DIR_ENABLE
+        .ref_id = SPINDLE_PWM0,
+#else
+        .ref_id = SPINDLE_PWM0_NODIR,
+#endif
         .config = spindleConfig,
         .set_state = spindleSetStateVariable,
         .get_state = spindleGetState,
@@ -2616,6 +2641,11 @@ bool driver_init (void)
 
     static const spindle_ptrs_t spindle = {
         .type = SpindleType_Basic,
+#if DRIVER_SPINDLE_DIR_ENABLE
+        .ref_id = SPINDLE_ONOFF0_DIR,
+#else
+        .ref_id = SPINDLE_ONOFF0,
+#endif
         .set_state = spindleSetState,
         .get_state = spindleGetState,
         .cap = {
@@ -2731,22 +2761,6 @@ bool driver_init (void)
     aux_ctrl_claim_ports(aux_claim_explicit, NULL);
 #endif
 
-#if MPG_MODE == 1
-  #if KEYPAD_ENABLE == 2
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #else
-    if((hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL)))
-        protocol_enqueue_foreground_task(mpg_enable, NULL);
-  #endif
-#elif MPG_MODE == 2
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, keypad_enqueue_keycode);
-#elif MPG_MODE == 3
-    hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
-#elif KEYPAD_ENABLE == 2
-    stream_open_instance(KEYPAD_STREAM, 115200, keypad_enqueue_keycode, "Keypad");
-#endif
-
 #if ETHERNET_ENABLE
     grbl_enet_init();
 #endif
@@ -2761,6 +2775,16 @@ bool driver_init (void)
 #endif
 
 #include "grbl/plugins_init.h"
+
+#if MPG_ENABLE == 1
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, NULL);
+    if(hal.driver_cap.mpg_mode)
+        protocol_enqueue_foreground_task(mpg_enable, NULL);
+#elif MPG_ENABLE == 2
+    if(!hal.driver_cap.mpg_mode)
+        hal.driver_cap.mpg_mode = stream_mpg_register(stream_open_instance(MPG_STREAM, 115200, NULL, NULL), false, stream_mpg_check_enable);
+#endif
 
     // No need to move version check before init.
     // Compiler will fail any signature mismatch for existing entries.
@@ -2970,7 +2994,7 @@ static void gpio_isr (void)
                         ioports_event(&inputpin[i]);
                         break;
 
-#if MPG_MODE == 1
+#if MPG_ENABLE == 1
                     case PinGroup_MPG:
                         pinEnableIRQ(&inputpin[i], IRQ_Mode_None);
                         protocol_enqueue_foreground_task(mpg_select, NULL);
