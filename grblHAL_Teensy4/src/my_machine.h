@@ -97,13 +97,22 @@ N_AXIS has a default value of 3, edit grbl\config.h to increase.
 #define ESTOP_ENABLE              1 // When enabled only real-time report requests will be executed when the reset pin is asserted.
                                     // Note: if left commented out the default setting is determined from COMPATIBILITY_LEVEL.
 
+/*********************************
+*** stuff from flexihal build  ***
+*********************************/
 #define STATUS_LIGHT_ENABLE       1 // Expatria RGB plugin
+#define ENABLE_BACKLASH_COMPENSATION 1
+#define MINIMIZE_PROBE_OVERSHOOT  1
+#define PROBE_PROTECT_ENABLE      1 // Probe protect plugin
+#define NGC_EXPRESSIONS_ENABLE    1
+#define WEBSOCKET_ENABLE          1
+#define NVS_SIZE                  16384 // this is important, otherwise the Expatria keypad won't work due to macros using so much NVS space
+#define DEFAULT_PLANNER_BUFFER_BLOCKS 128 // no idea why this has been increased from 100 but hey here we go
 
 // Optional control signals:
 // These will be assigned to aux input pins. Use the $pins command to check which pins are assigned.
 // NOTE: If not enough pins are available assignment will silently fail.
 #define PROBE_ENABLE              1 // Default enabled, remove comment to disable probe input.
-#define PROBE_PROTECT_ENABLE      1 // Probe protect plugin
 //#define SAFETY_DOOR_ENABLE      1
 //#define MOTOR_FAULT_ENABLE      1
 //#define MOTOR_WARNING_ENABLE    1
